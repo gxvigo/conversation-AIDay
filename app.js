@@ -19,7 +19,6 @@
 var express = require('express'); // app server
 var bodyParser = require('body-parser'); // parser for post requests
 var Conversation = require('watson-developer-cloud/conversation/v1'); // watson sdk
-
 var getTweetsCloudant = require('./cloudantDS').getTweetsCloudant;  // my module to retrieve Cloudants objects
 
 var app = express();
@@ -29,11 +28,12 @@ app.use(express.static('./public')); // load UI from public folder
 app.use(bodyParser.json());
 
 // Create the service wrapper
+
 var conversation = new Conversation({
     // If unspecified here, the CONVERSATION_USERNAME and CONVERSATION_PASSWORD env properties will be checked
     // After that, the SDK will fall back to the bluemix-provided VCAP_SERVICES environment property
-    //'username': process.env.CONVERSATION_USERNAME,
-    //'password': process.env.CONVERSATION_PASSWORD,
+    'username': process.env.CONVERSATION_USERNAME,
+    'password': process.env.CONVERSATION_PASSWORD,
     'version_date': '2017-05-26'
 });
 
@@ -58,26 +58,24 @@ app.post('/api/message', function (req, res) {
         if (err) {
             return res.status(err.code || 500).json(err);
         }
-        return res.json(updateMessage(payload, data));
+        updateMessage(payload, data, res);
     });
 });
 
 /**
  * Updates the response text using the intent confidence
  * @param  {Object} input The request to the Conversation service
- * @param  {Object} response The response from the Conversation service
- * @return {Object}          The response with the updated message
+ * @param  {Object} convdata The response from the Conversation service
+ * @param  {Object} The response object that manages the HTTP response for the request
  */
-function updateMessage(input, response) {
+function updateMessage(input, convdata, response) {
     console.log('### in updateMessage');
     var responseText = null;
-    if (!response.output) {
-        response.output = {};
+    if (!convdata.output) {
+        convdata.output = {};
     } else {
-//        console.log('### in updateMessage - response.output: ' + JSON.stringify(response));
-        if (response.context.system.dialog_request_counter > 1 && response.intents[0].intent === "socialMediaFeed") {
-            
-            
+//        console.log('### in updateMessage - convdata.output: ' + JSON.stringify(convdata));
+        if (convdata.context.system.dialog_request_counter > 1 && convdata.intents[0].intent === "socialMediaFeed") {
             var tweetsString;
             getTweetsCloudant('something', function (err, result) {
                 if (err) {
@@ -89,22 +87,16 @@ function updateMessage(input, response) {
                         tweetsString += result[i].text + '\r\n';
                     }
                     console.log(JSON.stringify(tweetsString));
-                    response.output.text = JSON.stringify(tweetsString);
+                    response.json(tweetsString)
                 }
             });
-            
-            
-            
-//            response.output.text = "This is a tweet!";
-//            response.output.text = retrieveTweets('something');
             console.log('response : ' + JSON.stringify(response));
-            return response;
         } else {
-            return response;
+            response.json({ "info" : "no social media feed intent"});
         }
-//        return response;
     }
-    if (response.intents && response.intents[0]) {
+
+    if (convdata.intents && convdata.intents[0]) {
         var intent = response.intents[0];
         // Depending on the confidence of the response the app can return different messages.
         // The confidence will vary depending on how well the system is trained. The service will always try to assign
@@ -119,8 +111,7 @@ function updateMessage(input, response) {
             responseText = 'I did not understand your intent';
         }
     }
-    response.output.text = responseText;
-    return response;
+    response.json(responseText)
 }
 
 //function retrieveTweets(key, next) {
