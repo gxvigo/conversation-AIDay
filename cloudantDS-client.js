@@ -1,3 +1,4 @@
+/*
 'use strict';
 
 var getTweetsCloudant = require('./cloudantDS').getTweetsCloudant;
@@ -10,3 +11,5 @@ console.log(getTweetsCloudant('something', function (err, result) {
         console.log('### in cloudantDS-client - result: ' + JSON.stringify(result));
     }
 }));
+
+*/
